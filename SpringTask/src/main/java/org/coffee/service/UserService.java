@@ -1,12 +1,12 @@
 package org.coffee.service;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.coffee.dto.UserDTO;
 import org.coffee.model.User;
 import org.coffee.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,24 +16,26 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    public UserDTO createUser(UserDTO userDTO) {
-        User user = new User();
-        user.setName(userDTO.getName());
-        user.setEmail(userDTO.getEmail());
-        user.setAge(userDTO.getAge());
-        user.setCreatedAt(LocalDateTime.now());
-        user = userRepository.save(user);
-        userDTO.setId(user.getId());
-        return userDTO;
-    }
-
+    @CircuitBreaker(name = "userService", fallbackMethod = "fallbackGetUserById")
     public UserDTO getUserById(Long id) {
         User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
         return convertToDTO(user);
     }
 
+    public UserDTO fallbackGetUserById(Long id, Throwable throwable) {
+        // Логика для возврата резервного значения или сообщения об ошибке
+        return new UserDTO();
+    }
+
     public List<UserDTO> getAllUsers() {
-        return userRepository.findAll().stream().map(this::convertToDTO).collect(Collectors.toList());
+        List<User> users = userRepository.findAll();
+        return users.stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    public UserDTO createUser(UserDTO userDTO) {
+        User user = convertToEntity(userDTO);
+        User savedUser = userRepository.save(user);
+        return convertToDTO(savedUser);
     }
 
     public UserDTO updateUser(Long id, UserDTO userDTO) {
@@ -41,8 +43,8 @@ public class UserService {
         user.setName(userDTO.getName());
         user.setEmail(userDTO.getEmail());
         user.setAge(userDTO.getAge());
-        user = userRepository.save(user);
-        return convertToDTO(user);
+        User updatedUser = userRepository.save(user);
+        return convertToDTO(updatedUser);
     }
 
     public void deleteUser(Long id) {
@@ -56,5 +58,13 @@ public class UserService {
         userDTO.setEmail(user.getEmail());
         userDTO.setAge(user.getAge());
         return userDTO;
+    }
+
+    private User convertToEntity(UserDTO userDTO) {
+        User user = new User();
+        user.setName(userDTO.getName());
+        user.setEmail(userDTO.getEmail());
+        user.setAge(userDTO.getAge());
+        return user;
     }
 }
