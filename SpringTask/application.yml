@@ -1,0 +1,18 @@
+# application.yml for user-service
+spring:
+  application:
+    name: user-service
+  cloud:
+    config:
+      uri: http://config-server:8888
+  datasource:
+    url: jdbc:postgresql://postgres:5432/userdb
+    username: user
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+  eureka:
+    client:
+      service-url:
+        defaultZone: http://eureka-server:8761/eureka/
